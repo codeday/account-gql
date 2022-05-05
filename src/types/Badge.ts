@@ -1,0 +1,29 @@
+import { ObjectType, Field, ID } from "type-graphql";
+import { SubscriptionUser } from "./User";
+
+@ObjectType()
+export class Badge {
+  @Field(() => ID)
+  id: string;
+
+  @Field(() => Boolean, { nullable: true })
+  displayed?: boolean;
+
+  @Field(() => Number, { nullable: true })
+  order?: number | null;
+
+  @Field(() => String, { nullable: true })
+  expiresUtc?: string | null;
+}
+
+@ObjectType()
+export class SubscriptionBadge {
+  @Field(() => String, { nullable: true })
+  type: string;
+
+  @Field(() => SubscriptionUser, { nullable: true })
+  user: SubscriptionUser;
+
+  @Field(() => Badge)
+  badge: Badge;
+}
