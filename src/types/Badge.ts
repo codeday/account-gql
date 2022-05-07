@@ -21,7 +21,7 @@ export class SubscriptionBadge {
   @Field(() => String, { nullable: true })
   type: string;
 
-  @Field(() => SubscriptionUser, { nullable: true })
+  @Field(() => SubscriptionUser)
   user: SubscriptionUser;
 
   @Field(() => Badge)

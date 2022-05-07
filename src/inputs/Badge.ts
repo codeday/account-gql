@@ -2,7 +2,7 @@ import { Field, ID, InputType, Int } from "type-graphql";
 
 @InputType()
 export class BadgeInput {
-  @Field(() => ID, { nullable: true })
+  @Field(() => ID)
   id: string;
 
   @Field(() => Boolean, { nullable: true })

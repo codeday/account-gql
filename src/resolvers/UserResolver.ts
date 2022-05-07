@@ -9,24 +9,27 @@ import {
   Ctx,
   PubSub,
   PubSubEngine,
+  ID,
+  registerEnumType,
 } from "type-graphql";
-import { UsersWhere } from "../inputs/UserWhere";
+import { UserWhereInput } from "../inputs/UserWhere";
 import { SubscriptionUser, User } from "../types/User";
 import { getResolvers } from "../auth0/index";
 import { formatName, sanitizeUser } from "../auth0/utils";
 import config from "../config";
 import { Role } from "../types/Role";
 import phone from "phone";
-import { UserUpdate } from "../inputs/UserUpdate";
+import { UpdateUserInput } from "../inputs/UserUpdate";
 import { BadgeInput, DisplayedBadgeInput } from "../inputs/Badge";
 import LruCache from "lru-cache";
 import fetch from "node-fetch";
 import { AuthRole, Context } from "../context";
 import { UserSubscriptionTopics } from "./UserSubscriptions";
-import Uploader from '@codeday/uploader-node';
+import Uploader from "@codeday/uploader-node";
 import { Badge, SubscriptionBadge } from "../types/Badge";
-import { GraphQLUpload, FileUpload } from 'graphql-upload';
+import { GraphQLUpload, FileUpload } from "graphql-upload";
 import { Inject } from "typedi";
+import { UserSearch } from "../inputs/UserSearch";
 
 const {
   findUsers,
@@ -53,17 +56,23 @@ function getRoleByCode(code: string) {
 }
 
 const lru = new LruCache({ ttl: 1000 * 60 * 5, max: 500 });
+export enum PizzaOrTurtle {
+  TURTLE = "TURTLE",
+  PIZZA = "PIZZA",
+}
+registerEnumType(PizzaOrTurtle, {
+  name: "PizzaOrTurtle",
+});
 
 @Resolver(User)
 export class UserResolver {
-
   @Inject(() => Uploader)
   private readonly uploader: Uploader;
 
   @Query(() => User, { nullable: true })
   async getUser(
-    @Arg("where", () => UsersWhere) where: UsersWhere,
-    @Arg("fresh", () => Boolean, { nullable: true }) fresh: Boolean,
+    @Arg("where", () => UserWhereInput) where: UserWhereInput,
+    @Arg("fresh", () => Boolean, { nullable: true }) fresh: boolean,
     @Ctx() { auth }: Context
   ): Promise<User | undefined> {
     if (auth.isUser && auth.user) {
@@ -85,34 +94,33 @@ export class UserResolver {
 
   @Authorized(AuthRole.ADMIN, AuthRole.READ)
   @Query(() => [User], { nullable: true })
-  async getDiscordUsers(): Promise<[User] | undefined> {
+  async getDiscordUsers(): Promise<[User] | []> {
     try {
-      const users = await getAllUsers({});
-      return users;
+      return await getAllUsers({});
     } catch (ex) {
-      return;
+      return [];
     }
   }
 
-  @Query(() => [User], { nullable: true })
+  @Query(() => [User], { nullable: "items" })
   async searchUsers(
-    @Arg("where", () => UsersWhere) where: UsersWhere
-  ): Promise<[User] | undefined> {
-    return await findUsers(where, {});
+    @Arg("where", () => UserSearch) where: UserSearch
+  ): Promise<[User] | []> {
+    return findUsers(where, {}) || [];
   }
 
-  @Query(() => [Role], { nullable: true })
+  @Query(() => [Role], { nullable: "items" })
   async userRoles(
-    @Arg("id", () => String) id: String
-  ): Promise<[Role] | undefined> {
-    return await getRolesForUser(id);
+    @Arg("id", () => ID) id: string
+  ): Promise<[Role] | []> {
+    return getRolesForUser(id) || [];
   }
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async updateUser(
     @Arg("username") username: string,
-    @Arg("updates") updates: UserUpdate,
+    @Arg("updates") updates: UpdateUserInput,
     @Ctx() ctx: Context,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
@@ -132,9 +140,8 @@ export class UserResolver {
       throw new Error("Name is required.");
     } else if (!updates.givenName && typeof updates.givenName !== "undefined") {
       throw new Error("Name is required.");
-    }
-    else if (updates.acceptTos === false && !ctx.auth.read) {
-      throw new Error("You cannot unaccept the TOS.")
+    } else if (updates.acceptTos === false && !ctx.auth.read) {
+      throw new Error("You cannot unaccept the TOS.");
     }
     if (updates.phoneNumber) {
       updates.phoneNumber = phone(updates.phoneNumber).phoneNumber || "";
@@ -175,7 +182,7 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async grantBadge(
-    @Arg("where") where: UsersWhere,
+    @Arg("where") where: UserWhereInput,
     @Arg("badge") badge: BadgeInput,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
@@ -197,7 +204,7 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async revokeBadge(
-    @Arg("where") where: UsersWhere,
+    @Arg("where") where: UserWhereInput,
     @Arg("badge") badge: BadgeInput,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
@@ -220,27 +227,31 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async setDisplayedBadges(
-    @Arg("where") where: UsersWhere,
-    @Arg("badges", () => [DisplayedBadgeInput]) badges: DisplayedBadgeInput[],
+    @Arg("where") where: UserWhereInput,
+    @Arg("badges", () => [DisplayedBadgeInput], { nullable: true })
+    badges: DisplayedBadgeInput[],
     @Ctx() ctx: Context,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
     if (!ctx.auth.user && !where) {
-      throw new Error("Please specify a user to update.")
+      throw new Error("Please specify a user to update.");
     } else if (badges.length > MAX_DISPLAYED_BADGES) {
-      throw new Error("Displayed badges cannot be more than 3.")
+      throw new Error("Displayed badges cannot be more than 3.");
     }
 
     await updateUser(where, ctx, (prev: User) => {
-      const oldDisplayedBadges = prev.badges || []
-        .filter((b: { displayed: boolean }) => b.displayed === true)
-        .slice(0, MAX_DISPLAYED_BADGES);
-      const displayedBadges: Badge[] = prev.badges?.filter((badge: { id: string }) =>
-        badges.some((e) => e.id === badge.id)
-      ) || [];
+      const oldDisplayedBadges =
+        prev.badges ||
+        []
+          .filter((b: { displayed: boolean }) => b.displayed === true)
+          .slice(0, MAX_DISPLAYED_BADGES);
+      const displayedBadges: Badge[] =
+        prev.badges?.filter((badge: { id: string }) =>
+          badges.some((e) => e.id === badge.id)
+        ) || [];
       if (
         Object.keys(oldDisplayedBadges).length ===
-        Object.keys(displayedBadges).length &&
+          Object.keys(displayedBadges).length &&
         Object.keys(oldDisplayedBadges).every(
           (p) =>
             oldDisplayedBadges[p as unknown as number] ===
@@ -249,24 +260,21 @@ export class UserResolver {
       ) {
         return true;
       }
-      displayedBadges.map(
-        (badge: Badge, index: any) => {
-          badge.order = badges.find((x) => x.id === badge.id)?.order || 0;
-        }
-      );
+      displayedBadges.map((badge: Badge) => {
+        badge.order = badges.find((x) => x.id === badge.id)?.order || 0;
+      });
       displayedBadges.sort(
         (a: Badge, b: Badge) => (a.order || 0) - (b.order || 0)
       );
-      displayedBadges.map(
-        (badge: Badge, index: any) => {
-          badge.displayed = true;
-          badge.order = index;
-        }
-      );
+      displayedBadges.map((badge: Badge, index: any) => {
+        badge.displayed = true;
+        badge.order = index;
+      });
 
-      const notDisplayedBadges = prev.badges?.filter(
-        (badge: { id: string }) => !badges.some((e) => e.id === badge.id)
-      ) || [];
+      const notDisplayedBadges =
+        prev.badges?.filter(
+          (badge: { id: string }) => !badges.some((e) => e.id === badge.id)
+        ) || [];
       notDisplayedBadges.map((badge: Badge) => {
         badge.displayed = false;
         badge.order = null;
@@ -286,8 +294,8 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async addRole(
-    @Arg("id") id: string,
-    @Arg("roleId") roleId: string,
+    @Arg("id", () => ID) id: string,
+    @Arg("roleId", () => ID) roleId: string,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
     const user = (await findUsersUncached({ id }, {}))[0];
@@ -304,7 +312,7 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async addRoleByCode(
-    @Arg("where") where: UsersWhere,
+    @Arg("where") where: UserWhereInput,
     @Arg("code") code: string,
     @Ctx() ctx: Context,
     @PubSub() pubSub: PubSubEngine
@@ -330,7 +338,7 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async linkDiscord(
-    @Arg("userId") userId: string,
+    @Arg("userId", () => ID) userId: string,
     @Arg("discordId") discordId: string,
     @Ctx() ctx: Context,
     @PubSub() pubSub: PubSubEngine
@@ -349,7 +357,11 @@ export class UserResolver {
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => Boolean)
-  async unlinkDiscord(@Arg("userId") userId: string, @Ctx() ctx: Context, @PubSub() pubSub: PubSubEngine): Promise<boolean> {
+  async unlinkDiscord(
+    @Arg("userId", () => ID) userId: string,
+    @Ctx() ctx: Context,
+    @PubSub() pubSub: PubSubEngine
+  ): Promise<boolean> {
     await updateUser({ id: userId }, ctx, (prev: User) => {
       if (!prev.discordId) {
         throw new Error("That user does not have a Discord account linked!");
@@ -365,8 +377,8 @@ export class UserResolver {
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => Boolean)
   async pizzaOrTurtleCult(
-    @Arg("where") where: UsersWhere,
-    @Arg("pizzaOrTurtle") pizzaOrTurtle: string,
+    @Arg("where") where: UserWhereInput,
+    @Arg("pizzaOrTurtle", () => PizzaOrTurtle) pizzaOrTurtle: PizzaOrTurtle,
     @Ctx() ctx: Context,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
@@ -393,7 +405,11 @@ export class UserResolver {
       };
       const cultPayload: SubscriptionUser = user;
       pubSub.publish(UserSubscriptionTopics.cultSelection, cultPayload);
-      const badgePayload: SubscriptionBadge = { type: "grant", user, badge: { id: badgeId } };
+      const badgePayload: SubscriptionBadge = {
+        type: "grant",
+        user,
+        badge: { id: badgeId },
+      };
       pubSub.publish(UserSubscriptionTopics.badgeUpdate, badgePayload);
       return user;
     });
@@ -402,7 +418,12 @@ export class UserResolver {
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.WRITE)
   @Mutation(() => String)
-  async uploadProfilePicture(@Arg("where") where: UsersWhere, @Arg("upload", () => GraphQLUpload) upload: FileUpload, @Ctx() ctx: Context, @PubSub() pubSub: PubSubEngine): Promise<string> {
+  async uploadProfilePicture(
+    @Arg("where") where: UserWhereInput,
+    @Arg("upload", () => GraphQLUpload) upload: FileUpload,
+    @Ctx() ctx: Context,
+    @PubSub() pubSub: PubSubEngine
+  ): Promise<string> {
     const { createReadStream, filename } = await upload;
     const chunks = [];
     // eslint-disable-next-line no-restricted-syntax
@@ -410,23 +431,31 @@ export class UserResolver {
       chunks.push(chunk);
     }
     const uploadBuffer = Buffer.concat(chunks);
-    const result = await this.uploader.image(uploadBuffer, filename || '_.jpg');
+    const result = await this.uploader.image(uploadBuffer, filename || "_.jpg");
     if (!result.url) {
-      throw new Error("An error occured while uploading your picture. Please refresh the page and try again.")
+      throw new Error(
+        "An error occured while uploading your picture. Please refresh the page and try again."
+      );
     }
     await updateUser(where, ctx, (prev: User) => {
-      const user: User = { ...prev, picture: result.urlResize.replace(/{(width|height)}/g, 256 as unknown as string) }
+      const user: User = {
+        ...prev,
+        picture: result.urlResize.replace(
+          /{(width|height)}/g,
+          256 as unknown as string
+        ),
+      };
 
       const payload: SubscriptionUser = user;
       pubSub.publish(UserSubscriptionTopics.profilePictureUpdate, payload);
-      return user
-    })
-    return ""
+      return user;
+    });
+    return "";
   }
 
   @FieldResolver({ name: "roles" })
   async roles(@Root() { id }: User) {
-    return await getRolesForUser(id);
+    return getRolesForUser(id);
   }
 
   @FieldResolver({ name: "discordInformation" })
@@ -445,16 +474,16 @@ export class UserResolver {
       const data = await response.json();
       result = data
         ? {
-          username: data.username,
-          discriminator: data.discriminator,
-          handle: `@${data.username}#${data.discriminator}`,
-          tag: `<@${discordId}>`,
-          avatar:
-            "https://cdn.discordapp.com/avatars/" +
-            discordId +
-            "/" +
-            data.avatar,
-        }
+            username: data.username,
+            discriminator: data.discriminator,
+            handle: `@${data.username}#${data.discriminator}`,
+            tag: `<@${discordId}>`,
+            avatar:
+              "https://cdn.discordapp.com/avatars/" +
+              discordId +
+              "/" +
+              data.avatar,
+          }
         : null;
     }
 

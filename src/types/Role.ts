@@ -5,8 +5,8 @@ export class Role {
   @Field(() => ID)
   id: string;
 
-  @Field(() => String, {nullable: true})
-  name?: string;
+  @Field(() => String)
+  name: string;
 
   @Field(() => String, {nullable: true})
   description?: string;

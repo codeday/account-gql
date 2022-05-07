@@ -2,7 +2,7 @@ import { Authorized, Field, ID, InputType } from "type-graphql";
 import { AuthRole } from "../context";
 
 @InputType()
-export class UserUpdate {
+export class UpdateUserInput {
   @Field(() => String, { nullable: true })
   username?: string;
 

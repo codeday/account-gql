@@ -1,20 +1,9 @@
 import {
   Resolver,
-  Query,
-  Arg,
-  registerEnumType,
-  ID,
-  Mutation,
-  FieldResolver,
   Root,
   Subscription,
 } from "type-graphql";
-import { UsersWhere } from "../inputs/UserWhere";
 import { SubscriptionUser, User } from "../types/User";
-import { getResolvers } from "../auth0/index";
-import { sanitizeUser } from "../auth0/utils";
-import config from "../config";
-import { Role } from "../types/Role";
 import { SubscriptionBadge } from "../types/Badge";
 
 export enum UserSubscriptionTopics {

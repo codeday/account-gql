@@ -1,7 +1,7 @@
 import { Field, ID, InputType } from "type-graphql";
 
 @InputType()
-export class UsersWhere {
+export class UserWhereInput {
   @Field(() => ID, { nullable: true })
   id: string;
 
@@ -12,5 +12,5 @@ export class UsersWhere {
   email?: string;
 
   @Field(() => String, { nullable: true })
-  discordId?: String;
+  discordId?: string;
 }

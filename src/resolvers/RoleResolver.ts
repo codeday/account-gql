@@ -24,15 +24,15 @@ const {
 
 @Resolver(Role)
 export class RoleResolver {
-  @Query(() => [User], { nullable: true })
+  @Query(() => [User], { nullable: "items" })
   async roleUsers(
     @Arg("roleId", () => String) roleId: String
   ): Promise<[User] | undefined> {
-    return await findUsersByRole(roleId, {});
+    return findUsersByRole(roleId, {});
   }
 
-  @Query(() => [Role], { nullable: true })
+  @Query(() => [Role], { nullable: "items" })
   async roles(): Promise<[Role] | undefined> {
-    return await findRoles({}, {});
+    return findRoles({}, {});
   }
 }

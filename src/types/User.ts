@@ -46,38 +46,38 @@ export class User {
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
   @Field(() => String, { nullable: true })
-  familyName?: String;
+  familyName?: string;
 
   @Field(() => String, { nullable: true })
-  name?: String;
+  name?: string;
 
   @Field(() => String, { nullable: true })
-  title?: String;
+  title?: string;
 
   @Field(() => String, { nullable: true })
-  bio?: String;
+  bio?: string;
 
   @Field(() => String, { nullable: true })
-  discordId?: String;
+  discordId?: string;
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
   @Field(() => Boolean, { nullable: true })
-  acceptTos?: Boolean;
+  acceptTos?: boolean;
 
   @Field(() => String, { nullable: true })
-  displayNameFormat?: String;
+  displayNameFormat?: string;
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
   @Field(() => String, { nullable: true })
-  phoneNumber?: String;
+  phoneNumber?: string;
 
   @Field(() => String, { nullable: true })
-  pronoun?: String;
+  pronoun?: string;
 
-  @Field(() => [Role], { nullable: true })
-  roles?: [Role];
+  @Field(() => [Role], { nullable: "itemsAndList" })
+  roles?: Role[];
 
-  @Field(() => [Badge], { nullable: true })
+  @Field(() => [Badge], { nullable: "itemsAndList" })
   badges?: Badge[];
 
   @Field(() => DiscordInformation, { nullable: true })
@@ -95,23 +95,23 @@ export class SubscriptionUser {
   username?: string;
 
   @Field(() => String, { nullable: true })
-  name?: String;
+  name?: string;
 
   @Field(() => String, { nullable: true })
-  pronoun?: String;
+  pronoun?: string;
   
   @Field(() => String, { nullable: true })
-  bio?: String;
+  bio?: string;
 
   @Field(() => String, { nullable: true })
-  discordId?: String;
+  discordId?: string;
   
   @Field(() => String, { nullable: true })
   picture?: string;
 
-  @Field(() => [Role], { nullable: true })
-  roles?: [Role];
+  @Field(() => [Role], { nullable: "itemsAndList" })
+  roles?: Role[];
 
-  @Field(() => [Badge], { nullable: true })
+  @Field(() => [Badge], { nullable: "itemsAndList" })
   badges?: Badge[];
 }
