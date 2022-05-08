@@ -447,7 +447,7 @@
 
 "@types/lru-cache@^7.6.1":
   version "7.6.1"
-  resolved "https://registry.npmjs.org/@types/lru-cache/-/lru-cache-7.6.1.tgz"
+  resolved "https://registry.yarnpkg.com/@types/lru-cache/-/lru-cache-7.6.1.tgz#99809260ef1e870b8ef2ab3a625784a33cec5ba9"
   integrity sha512-69x+Dhrm2aShFkTqUuPgUXbKYwvq4FH/DVeeQH7MBfTjbKjPX51NGLERxVV1vf33N71dzLvXCko4OLqRvsq53Q==
 
 "@types/mime@^1":

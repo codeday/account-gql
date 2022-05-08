@@ -13,7 +13,7 @@ import {
   registerEnumType,
 } from "type-graphql";
 import { UserWhereInput } from "../inputs/UserWhere";
-import { SubscriptionUser, User } from "../types/User";
+import { DiscordInformation, SubscriptionUser, User } from "../types/User";
 import { getResolvers } from "../auth0/index";
 import { formatName, sanitizeUser } from "../auth0/utils";
 import config from "../config";
@@ -26,10 +26,11 @@ import fetch from "node-fetch";
 import { AuthRole, Context } from "../context";
 import { UserSubscriptionTopics } from "./UserSubscriptions";
 import Uploader from "@codeday/uploader-node";
-import { Badge, SubscriptionBadge } from "../types/Badge";
+import { Badge, PizzaOrTurtle, SubscriptionBadge } from "../types/Badge";
 import { GraphQLUpload, FileUpload } from "graphql-upload";
 import { Inject } from "typedi";
 import { UserSearch } from "../inputs/UserSearch";
+import { UserPictureTransformInput } from "../inputs/Picture";
 
 const {
   findUsers,
@@ -55,14 +56,7 @@ function getRoleByCode(code: string) {
   return ROLE_CODES[code.replace(/\W/g, "")] || null;
 }
 
-const lru = new LruCache({ ttl: 1000 * 60 * 5, max: 500 });
-export enum PizzaOrTurtle {
-  TURTLE = "TURTLE",
-  PIZZA = "PIZZA",
-}
-registerEnumType(PizzaOrTurtle, {
-  name: "PizzaOrTurtle",
-});
+const lru = new LruCache<String, DiscordInformation | null>({ ttl: 1000 * 60 * 5, max: 500 });
 
 @Resolver(User)
 export class UserResolver {
@@ -93,7 +87,7 @@ export class UserResolver {
   }
 
   @Authorized(AuthRole.ADMIN, AuthRole.READ)
-  @Query(() => [User], { nullable: true })
+  @Query(() => [User], { nullable: "items" })
   async getDiscordUsers(): Promise<[User] | []> {
     try {
       return await getAllUsers({});
@@ -251,7 +245,7 @@ export class UserResolver {
         ) || [];
       if (
         Object.keys(oldDisplayedBadges).length ===
-          Object.keys(displayedBadges).length &&
+        Object.keys(displayedBadges).length &&
         Object.keys(oldDisplayedBadges).every(
           (p) =>
             oldDisplayedBadges[p as unknown as number] ===
@@ -459,9 +453,9 @@ export class UserResolver {
   }
 
   @FieldResolver({ name: "discordInformation" })
-  async discordInformation(@Root() { discordId }: User) {
+  async discordInformation(@Root() { discordId }: User): Promise<DiscordInformation | null> {
     if (!discordId) return null;
-    let result = lru.get(discordId);
+    let result: DiscordInformation | null = lru.get(discordId) || null;
 
     if (!result) {
       const response = await fetch(
@@ -474,19 +468,43 @@ export class UserResolver {
       const data = await response.json();
       result = data
         ? {
-            username: data.username,
-            discriminator: data.discriminator,
-            handle: `@${data.username}#${data.discriminator}`,
-            tag: `<@${discordId}>`,
-            avatar:
-              "https://cdn.discordapp.com/avatars/" +
-              discordId +
-              "/" +
-              data.avatar,
-          }
+          username: data.username,
+          discriminator: data.discriminator,
+          handle: `@${data.username}#${data.discriminator}`,
+          tag: `<@${discordId}>`,
+          avatar:
+            "https://cdn.discordapp.com/avatars/" +
+            discordId +
+            "/" +
+            data.avatar,
+        }
         : null;
     }
-
+    lru.set(discordId, result);
     return result;
+  }
+
+
+
+  @FieldResolver()
+  badges(@Root() { badges }: User, @Arg("displayed", { nullable: true }) displayed: boolean): Badge[] | undefined {
+    return displayed ? badges?.filter((b: Badge) => b.displayed) : badges?.filter((b: Badge) => !b.displayed);
+  }
+
+  @FieldResolver()
+  picture(@Root() { picture }: User, @Arg("transform", { nullable: true }) transform: UserPictureTransformInput): string | undefined {
+    if (!transform || Object.keys(transform).length === 0) return picture;
+
+    if (picture?.match(/gravatar\.com/)) {
+      const maxDimension = Math.max(transform.width || 0, transform.height || 0);
+      const sizelessUrl = picture?.replace(/s=\d+/, '');
+      return `${sizelessUrl}${sizelessUrl.match(/\?/) ? '&' : '?'}s=${maxDimension}`;
+    }
+
+    const imgArgs = Object.entries(transform)
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value).toLowerCase()}`)
+      .join(';');
+
+    return picture?.replace(/https:\/\/img.codeday.org\/[a-zA-Z0-9]+\//, `https://img.codeday.org/${imgArgs}/`);
   }
 }

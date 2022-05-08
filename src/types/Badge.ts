@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID } from "type-graphql";
+import { ObjectType, Field, ID, registerEnumType } from "type-graphql";
 import { SubscriptionUser } from "./User";
 
 @ObjectType()
@@ -27,3 +27,11 @@ export class SubscriptionBadge {
   @Field(() => Badge)
   badge: Badge;
 }
+
+export enum PizzaOrTurtle {
+  TURTLE = "TURTLE",
+  PIZZA = "PIZZA",
+}
+registerEnumType(PizzaOrTurtle, {
+  name: "PizzaOrTurtle",
+});
