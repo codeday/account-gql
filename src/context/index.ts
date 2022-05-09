@@ -12,9 +12,10 @@ export async function createContext({ req }: ExpressContext): Promise<Context> {
     .split(/\s+/);
   const legacyTokenHeader = (
     req?.header("Authorization") ||
-    req?.header("Account-Authorization") ||
     ""
-  ).split(/\s+/);
+  )
+  const legacyUserTokenHeader =
+    (req?.header("Account-Authorization") || "").split(/\s+/);
   if (tokenHeader.length != 2 && legacyTokenHeader.length == 2) {
     const token =
       legacyTokenHeader[0] === "Bearer"
@@ -22,6 +23,14 @@ export async function createContext({ req }: ExpressContext): Promise<Context> {
         : undefined;
     return {
       auth: new LegacyAuthContext(token),
+    };
+  } else if (tokenHeader.length != 2 && legacyUserTokenHeader.length == 2) {
+    const token =
+      legacyUserTokenHeader[0] === "Bearer"
+        ? legacyUserTokenHeader[1].trim()
+        : undefined;
+    return {
+      auth: new LegacyAuthContext(token, true),
     };
   }
   const token = tokenHeader[0] === "Bearer" ? tokenHeader[1].trim() : undefined;

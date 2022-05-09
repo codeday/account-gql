@@ -58,11 +58,11 @@ export class LegacyAuthContext {
 
   private readonly scopes: string[]
 
-  constructor(token?: string) {
+  constructor(token?: string, userToken?: boolean) {
     if (!token) return;
     this.token = <LegacyJwtToken>verify(
       token,
-      config.auth.secret
+      userToken ? config.auth.userSecret : config.auth.secret
     );
     if (!this.token?.id) {
       this.scopes = this.token?.scopes?.split(/\s+/g) || []
