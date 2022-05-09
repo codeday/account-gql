@@ -13,7 +13,7 @@ export async function createContext({ req }: ExpressContext): Promise<Context> {
   const legacyTokenHeader = (
     req?.header("Authorization") ||
     ""
-  )
+  ).split(/\s+/);
   const legacyUserTokenHeader =
     (req?.header("Account-Authorization") || "").split(/\s+/);
   if (tokenHeader.length != 2 && legacyTokenHeader.length == 2) {

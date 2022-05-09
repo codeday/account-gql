@@ -62,7 +62,7 @@ export class LegacyAuthContext {
     if (!token) return;
     this.token = <LegacyJwtToken>verify(
       token,
-      userToken ? config.auth.userSecret : config.auth.secret
+      (userToken ? config.auth.userSecret : config.auth.secret)
     );
     if (!this.token?.id) {
       this.scopes = this.token?.scopes?.split(/\s+/g) || []
@@ -77,16 +77,16 @@ export class LegacyAuthContext {
     if (this.token?.id) {
       return AuthRole.USER;
     }
-    const read = <boolean><unknown> this.scopes.reduce((accum, scope): boolean => scope.startsWith("read:") || accum, false)
-    const write = <boolean><unknown> this.scopes.reduce((accum, scope): boolean => scope.startsWith("write:") || accum, false)
+    const read = <boolean><unknown>this.scopes.reduce((accum, scope): boolean => scope.startsWith("read:") || accum, false)
+    const write = <boolean><unknown>this.scopes.reduce((accum, scope): boolean => scope.startsWith("write:") || accum, false)
     if (read && write) {
       return AuthRole.ADMIN;
-    } else 
-    if (read) {
-      return AuthRole.READ;
-    } else if (write) {
-      return AuthRole.WRITE;
-    }
+    } else
+      if (read) {
+        return AuthRole.READ;
+      } else if (write) {
+        return AuthRole.WRITE;
+      }
     return;
   }
 
