@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID, registerEnumType } from "type-graphql";
+import { ObjectType, Field, ID, registerEnumType, Int } from "type-graphql";
 import { SubscriptionUser } from "./User";
 
 @ObjectType()
@@ -9,7 +9,7 @@ export class Badge {
   @Field(() => Boolean, { nullable: true })
   displayed?: boolean;
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Int, { nullable: true })
   order?: number | null;
 
   @Field(() => String, { nullable: true })
