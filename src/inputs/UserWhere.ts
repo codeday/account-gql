@@ -13,4 +13,7 @@ export class UserWhereInput {
 
   @Field(() => String, { nullable: true })
   discordId?: string;
+
+  @Field(() => String, { nullable: true })
+  githubUsername?: string;
 }

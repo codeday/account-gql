@@ -60,6 +60,9 @@ export class User {
   @Field(() => String, { nullable: true })
   discordId?: string;
 
+  @Field(() => String, { nullable: true })
+  githubUsername?: string;
+
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
   @Field(() => Boolean, { nullable: true })
   acceptTos?: boolean;
