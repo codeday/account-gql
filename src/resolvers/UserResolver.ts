@@ -41,19 +41,16 @@ const {
   findRoles,
   updateUser,
   addRole,
-} = getResolvers(
-  config.auth0.domain,
-  config.auth0.clientId,
-  config.auth0.clientSecret
-);
+} = getResolvers(config.auth0.domain, config.auth0.clientId, config.auth0.clientSecret);
+
 const MAX_DISPLAYED_BADGES = 3;
-const ROLE_CODES: any = config.roleCodes
-  .split(";")
-  .map((e) => e.split(":"))
-  .reduce((accum, [code, role]) => ({ ...accum, [code]: role }), {});
+
+const ROLE_CODES = config.roleCodes;
+
+console.log(`Role codes:\n`, ROLE_CODES);
 
 function getRoleByCode(code: string) {
-  return ROLE_CODES[code.replace(/\W/g, "")] || null;
+  return ROLE_CODES[code.replace(/\W/g, "") as keyof typeof ROLE_CODES] || null;
 }
 
 const lru = new LruCache<String, DiscordInformation | null>({ ttl: 1000 * 60 * 5, max: 500 });
@@ -97,16 +94,12 @@ export class UserResolver {
   }
 
   @Query(() => [User], { nullable: "items" })
-  async searchUsers(
-    @Arg("where", () => UserSearch) where: UserSearch
-  ): Promise<[User] | []> {
+  async searchUsers(@Arg("where", () => UserSearch) where: UserSearch): Promise<[User] | []> {
     return findUsers(where, {}) || [];
   }
 
   @Query(() => [Role], { nullable: "items" })
-  async userRoles(
-    @Arg("id", () => ID) id: string
-  ): Promise<[Role] | []> {
+  async userRoles(@Arg("id", () => ID) id: string): Promise<[Role] | []> {
     return getRolesForUser(id) || [];
   }
 
@@ -124,13 +117,8 @@ export class UserResolver {
       updates.username &&
       updates.username !== updates.username.replace(/[^a-zA-Z0-9\-_]/g, "")
     ) {
-      throw new Error(
-        "Username can only consist of letters, numbers, and _ or -."
-      );
-    } else if (
-      !updates.familyName &&
-      typeof updates.familyName !== "undefined"
-    ) {
+      throw new Error("Username can only consist of letters, numbers, and _ or -.");
+    } else if (!updates.familyName && typeof updates.familyName !== "undefined") {
       throw new Error("Name is required.");
     } else if (!updates.givenName && typeof updates.givenName !== "undefined") {
       throw new Error("Name is required.");
@@ -142,22 +130,13 @@ export class UserResolver {
     }
 
     await updateUser({ username }, ctx, async (prev: any) => {
-      if (prev.username && updates.username)
-        throw new Error("You cannot change your username!");
+      if (prev.username && updates.username) throw new Error("You cannot change your username!");
       const newUser = {
         ...prev,
         ...updates,
       };
-      if (
-        updates.displayNameFormat ||
-        updates.givenName ||
-        updates.familyName
-      ) {
-        newUser.name = formatName(
-          newUser.displayNameFormat,
-          newUser.givenName,
-          newUser.familyName
-        );
+      if (updates.displayNameFormat || updates.givenName || updates.familyName) {
+        newUser.name = formatName(newUser.displayNameFormat, newUser.givenName, newUser.familyName);
       }
       if (
         Object.keys(prev).length === Object.keys(newUser).length &&
@@ -183,10 +162,7 @@ export class UserResolver {
     await updateUser(where, {}, (prev: any) => {
       const user = {
         ...prev,
-        badges: [
-          ...(prev.badges || []).filter((b: any) => b.id !== badge.id),
-          badge,
-        ],
+        badges: [...(prev.badges || []).filter((b: any) => b.id !== badge.id), badge],
       };
       const payload: SubscriptionBadge = { type: "grant", user, badge };
       pubSub.publish(UserSubscriptionTopics.badgeUpdate, payload);
@@ -205,11 +181,7 @@ export class UserResolver {
     await updateUser(where, {}, (prev: any) => {
       const user = {
         ...prev,
-        badges: [
-          ...(prev.badges || []).filter(
-            (b: { id: string }) => b.id !== badge.id
-          ),
-        ],
+        badges: [...(prev.badges || []).filter((b: { id: string }) => b.id !== badge.id)],
       };
       const payload: SubscriptionBadge = { type: "revoke", user, badge };
       pubSub.publish(UserSubscriptionTopics.badgeUpdate, payload);
@@ -240,16 +212,12 @@ export class UserResolver {
           .filter((b: { displayed: boolean }) => b.displayed === true)
           .slice(0, MAX_DISPLAYED_BADGES);
       const displayedBadges: Badge[] =
-        prev.badges?.filter((badge: { id: string }) =>
-          badges.some((e) => e.id === badge.id)
-        ) || [];
+        prev.badges?.filter((badge: { id: string }) => badges.some((e) => e.id === badge.id)) || [];
       if (
-        Object.keys(oldDisplayedBadges).length ===
-        Object.keys(displayedBadges).length &&
+        Object.keys(oldDisplayedBadges).length === Object.keys(displayedBadges).length &&
         Object.keys(oldDisplayedBadges).every(
           (p) =>
-            oldDisplayedBadges[p as unknown as number] ===
-            displayedBadges[p as unknown as number]
+            oldDisplayedBadges[p as unknown as number] === displayedBadges[p as unknown as number]
         )
       ) {
         return true;
@@ -257,18 +225,15 @@ export class UserResolver {
       displayedBadges.map((badge: Badge) => {
         badge.order = badges.find((x) => x.id === badge.id)?.order || 0;
       });
-      displayedBadges.sort(
-        (a: Badge, b: Badge) => (a.order || 0) - (b.order || 0)
-      );
+      displayedBadges.sort((a: Badge, b: Badge) => (a.order || 0) - (b.order || 0));
       displayedBadges.map((badge: Badge, index: any) => {
         badge.displayed = true;
         badge.order = index;
       });
 
       const notDisplayedBadges =
-        prev.badges?.filter(
-          (badge: { id: string }) => !badges.some((e) => e.id === badge.id)
-        ) || [];
+        prev.badges?.filter((badge: { id: string }) => !badges.some((e) => e.id === badge.id)) ||
+        [];
       notDisplayedBadges.map((badge: Badge) => {
         badge.displayed = false;
         badge.order = null;
@@ -379,23 +344,14 @@ export class UserResolver {
     const badgeId = pizzaOrTurtle.toLowerCase();
     const otherBadgeId = badgeId == "turtle" ? "pizza" : "turtle";
     await updateUser(where, ctx, (prev: any) => {
-      if (
-        (prev.badges || []).filter((b: any) => b.id === otherBadgeId).length > 0
-      ) {
-        throw new Error(
-          `HEY YOU ARE ALREADY APART OF THE ${otherBadgeId.toUpperCase()} CULT`
-        );
-      } else if (
-        (prev.badges || []).filter((b: any) => b.id === badgeId).length > 0
-      ) {
+      if ((prev.badges || []).filter((b: any) => b.id === otherBadgeId).length > 0) {
+        throw new Error(`HEY YOU ARE ALREADY APART OF THE ${otherBadgeId.toUpperCase()} CULT`);
+      } else if ((prev.badges || []).filter((b: any) => b.id === badgeId).length > 0) {
         throw new Error("You are already apart of that cult!");
       }
       const user = {
         ...prev,
-        badges: [
-          ...(prev.badges || []).filter((b: any) => b.id !== badgeId),
-          { id: badgeId },
-        ],
+        badges: [...(prev.badges || []).filter((b: any) => b.id !== badgeId), { id: badgeId }],
       };
       const cultPayload: SubscriptionUser = user;
       pubSub.publish(UserSubscriptionTopics.cultSelection, cultPayload);
@@ -434,10 +390,7 @@ export class UserResolver {
     await updateUser(where, ctx, (prev: User) => {
       const user: User = {
         ...prev,
-        picture: result.urlResize.replace(
-          /{(width|height)}/g,
-          256 as unknown as string
-        ),
+        picture: result.urlResize.replace(/{(width|height)}/g, 256 as unknown as string),
       };
 
       const payload: SubscriptionUser = user;
@@ -458,53 +411,57 @@ export class UserResolver {
     let result: DiscordInformation | null = lru.get(discordId) || null;
 
     if (!result) {
-      const response = await fetch(
-        "https://discordapp.com/api/users/" + discordId,
-        {
-          method: "GET",
-          headers: { Authorization: "Bot " + process.env.DISCORD_BOT_TOKEN },
-        }
-      );
+      const response = await fetch("https://discordapp.com/api/users/" + discordId, {
+        method: "GET",
+        headers: { Authorization: "Bot " + process.env.DISCORD_BOT_TOKEN },
+      });
       const data = await response.json();
       result = data
         ? {
-          username: data.username,
-          discriminator: data.discriminator,
-          handle: `@${data.username}#${data.discriminator}`,
-          tag: `<@${discordId}>`,
-          avatar:
-            "https://cdn.discordapp.com/avatars/" +
-            discordId +
-            "/" +
-            data.avatar,
-        }
+            username: data.username,
+            discriminator: data.discriminator,
+            handle: `@${data.username}#${data.discriminator}`,
+            tag: `<@${discordId}>`,
+            avatar: "https://cdn.discordapp.com/avatars/" + discordId + "/" + data.avatar,
+          }
         : null;
     }
     lru.set(discordId, result);
     return result;
   }
 
-
-
   @FieldResolver()
-  badges(@Root() { badges }: User, @Arg("displayed", { nullable: true }) displayed: boolean): Badge[] | undefined {
-    return displayed ? badges?.filter((b: Badge) => b.displayed) : badges?.filter((b: Badge) => !b.displayed);
+  badges(
+    @Root() { badges }: User,
+    @Arg("displayed", { nullable: true }) displayed: boolean
+  ): Badge[] | undefined {
+    return displayed
+      ? badges?.filter((b: Badge) => b.displayed)
+      : badges?.filter((b: Badge) => !b.displayed);
   }
 
   @FieldResolver()
-  picture(@Root() { picture }: User, @Arg("transform", { nullable: true }) transform: UserPictureTransformInput): string | undefined {
+  picture(
+    @Root() { picture }: User,
+    @Arg("transform", { nullable: true }) transform: UserPictureTransformInput
+  ): string | undefined {
     if (!transform || Object.keys(transform).length === 0) return picture;
 
     if (picture?.match(/gravatar\.com/)) {
       const maxDimension = Math.max(transform.width || 0, transform.height || 0);
-      const sizelessUrl = picture?.replace(/s=\d+/, '');
-      return `${sizelessUrl}${sizelessUrl.match(/\?/) ? '&' : '?'}s=${maxDimension}`;
+      const sizelessUrl = picture?.replace(/s=\d+/, "");
+      return `${sizelessUrl}${sizelessUrl.match(/\?/) ? "&" : "?"}s=${maxDimension}`;
     }
 
     const imgArgs = Object.entries(transform)
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value).toLowerCase()}`)
-      .join(';');
+      .map(
+        ([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value).toLowerCase()}`
+      )
+      .join(";");
 
-    return picture?.replace(/https:\/\/img.codeday.org\/[a-zA-Z0-9]+\//, `https://img.codeday.org/${imgArgs}/`);
+    return picture?.replace(
+      /https:\/\/img.codeday.org\/[a-zA-Z0-9]+\//,
+      `https://img.codeday.org/${imgArgs}/`
+    );
   }
 }

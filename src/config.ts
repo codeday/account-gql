@@ -8,7 +8,6 @@ loadEnv();
     'AUTH0_CLIENT_ID',
     'AUTH0_CLIENT_SECRET',
     'DISCORD_BOT_TOKEN',
-    'ROLE_CODES',
     'AUTH0_HOOK_SHARED_SECRET'
 ].forEach((req) => { if (!process.env[req]) throw Error(`The ${req} environment variable is required.`); });
 
@@ -24,7 +23,10 @@ const config = {
     clientId: process.env.AUTH0_CLIENT_ID!,
     clientSecret: process.env.AUTH0_CLIENT_SECRET!,
   },
-  roleCodes: process.env.ROLE_CODES!,
+  roleCodes: Object.keys(process.env)
+  .filter((n) => n.startsWith(`ROLE_CODE_`))
+  .map((n) => [n.slice("ROLE_CODE_".length).toLowerCase(), process.env[n]])
+  .reduce((accum, [code, role]) => (code && role ? { ...accum, [code]: role } : accum), {})!,
   discordBotToken: process.env.DISCORD_BOT_TOKEN!
 };
 
