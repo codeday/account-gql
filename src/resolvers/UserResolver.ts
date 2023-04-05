@@ -31,6 +31,8 @@ import { GraphQLUpload, FileUpload } from "graphql-upload";
 import { Inject } from "typedi";
 import { UserSearch } from "../inputs/UserSearch";
 import { UserPictureTransformInput } from "../inputs/Picture";
+import { DiscordTokenInfoInput } from "../inputs/Discord";
+import OAuth from "discord-oauth2";
 
 const {
   findUsers,
@@ -54,6 +56,11 @@ function getRoleByCode(code: string) {
 }
 
 const lru = new LruCache<String, DiscordInformation | null>({ ttl: 1000 * 60 * 5, max: 500 });
+
+export const discordApi = new OAuth({
+  version: "v8",
+  ...config.discord,
+});
 
 @Resolver(User)
 export class UserResolver {
@@ -81,6 +88,41 @@ export class UserResolver {
     } catch (ex) {
       return;
     }
+  }
+
+  @Authorized(AuthRole.ADMIN)
+  @Query(() => String, { nullable: true })
+  async getDiscordToken(
+    @Arg("discordId", () => String) discordId: string,
+    @Arg("refresh", () => Boolean, { nullable: true }) refresh: boolean = false
+  ): Promise<string | null> {
+    const user = (await findUsersUncached({ discordId: discordId }, {}))[0];
+    if (!user || !user.discordTokenInfo) return null;
+    if (Date.now() > user.discordTokenInfo.expiresAt || refresh) {
+      const {
+        access_token: accessToken,
+        token_type: tokenType,
+        expires_in: expiresIn,
+        refresh_token: refreshToken,
+        scope,
+      } = await discordApi.tokenRequest({
+        grantType: "refresh_token",
+        refreshToken: user.discordTokenInfo.refreshToken,
+        scope: user.discordTokenInfo.scope,
+      });
+      await this.setDiscordToken(
+        { id: user.id },
+        {
+          accessToken,
+          refreshToken,
+          expiresIn,
+          scope,
+          tokenType,
+        }
+      );
+      return accessToken;
+    }
+    return user.discordTokenInfo.accessToken || null;
   }
 
   @Authorized(AuthRole.ADMIN, AuthRole.READ)
@@ -291,6 +333,30 @@ export class UserResolver {
     }
     const payload: SubscriptionUser = users[0];
     pubSub.publish(UserSubscriptionTopics.roleUpdate, payload);
+    return true;
+  }
+
+  @Authorized(AuthRole.ADMIN)
+  @Mutation(() => Boolean)
+  async setDiscordToken(
+    @Arg("where") where: UserWhereInput,
+    @Arg("tokenInfo") tokenInfo: DiscordTokenInfoInput
+  ): Promise<boolean> {
+    await updateUser(where, {}, (prev: any) => {
+      if (tokenInfo.tokenType != "Bearer") throw new Error("Invalid token type");
+      if (
+        !tokenInfo.scope.includes("identify") ||
+        !tokenInfo.scope.includes("role_connections.write")
+      )
+        throw new Error("Invalid token scope");
+      const discordTokenInfo = {
+        expiresAt: Date.now() + tokenInfo.expiresIn,
+        accessToken: tokenInfo.accessToken,
+        refreshToken: tokenInfo.refreshToken,
+        scope: tokenInfo.scope,
+      };
+      return { ...prev, discordTokenInfo };
+    });
     return true;
   }
 
