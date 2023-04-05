@@ -16,7 +16,6 @@ export default async function server(): Promise<void> {
         context,
         // @ts-ignore
         introspection: true,
-
     });
     await apollo.start()
     const app = Express();

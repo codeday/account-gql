@@ -186,6 +186,7 @@ const updateUserFactory = (auth0) => async (where, ctx, updateFn) => {
     });
   }
 };
+
 const addRoleToUserFactory = (auth0) => async (id, roleId, ctx) => {
   requireAnyOfScopes(ctx, [scopes.writeUsers, ctx.user ? `write:user:${ctx.user}` : null])
   if (ctx.user) {

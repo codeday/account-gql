@@ -27,15 +27,15 @@ export class User {
   id: string;
 
   @Authorized(AuthRole.ADMIN, AuthRole.READ)
-  @Field(() => Boolean, { nullable: true })
-  blocked?: boolean;
+  @Field(() => Boolean)
+  blocked: boolean = false;
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
   @Field(() => String, { nullable: true })
   email?: string;
 
-  @Field(() => String, { nullable: true })
-  username?: string;
+  @Field(() => String)
+  username: string;
 
   @Field(() => String, { nullable: true })
   picture?: string;
@@ -77,11 +77,11 @@ export class User {
   @Field(() => String, { nullable: true })
   pronoun?: string;
 
-  @Field(() => [Role], { nullable: "itemsAndList" })
-  roles?: Role[];
+  @Field(() => [Role])
+  roles: Role[] = [];
 
-  @Field(() => [Badge], { nullable: "itemsAndList" })
-  badges?: Badge[];
+  @Field(() => [Badge])
+  badges: Badge[] = [];
 
   @Field(() => DiscordInformation, { nullable: true })
   discordInformation?: DiscordInformation;
