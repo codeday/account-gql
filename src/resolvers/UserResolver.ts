@@ -397,7 +397,7 @@ export class UserResolver {
       pubSub.publish(UserSubscriptionTopics.profilePictureUpdate, payload);
       return user;
     });
-    return "";
+    return result.url;
   }
 
   @FieldResolver({ name: "roles" })
