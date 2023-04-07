@@ -102,13 +102,13 @@ export class SubscriptionUser {
 
   @Field(() => String, { nullable: true })
   pronoun?: string;
-
+  
   @Field(() => String, { nullable: true })
   bio?: string;
 
   @Field(() => String, { nullable: true })
   discordId?: string;
-
+  
   @Field(() => String, { nullable: true })
   picture?: string;
 
