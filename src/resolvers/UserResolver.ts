@@ -62,6 +62,14 @@ export const discordApi = new OAuth({
   ...config.discord,
 });
 
+@Resolver(SubscriptionUser)
+export class SubscriptionUserResolver {
+  @FieldResolver({ name: "roles" })
+  async roles(@Root() { id }: User) {
+    return getRolesForUser(id);
+  }
+}
+
 @Resolver(User)
 export class UserResolver {
   @Inject(() => Uploader)
