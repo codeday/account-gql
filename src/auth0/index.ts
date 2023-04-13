@@ -122,7 +122,8 @@ const findUsersFactory = (auth0) => async (query, ctx, perPage = 10, page = 0, e
       ...userPublicFields,
       ...(hasAnyOfScopes(ctx, [scopes.readUsers, scopes.writeUsers, ctx.user ? `read:user:${ctx.user}` : null, ctx.user ? `write:user:${ctx.user}` : null]) ? userPrivateFields : []),
     ]))
-    .map((user) => ({ ...objectSnakeToCamel(filterKeysRemove(user, ['user_id'])), id: user.user_id }));
+    .map((user) => ({ ...objectSnakeToCamel(filterKeysRemove(user, ['user_id'])), id: user.user_id }))
+    .map((user) => ({ ...user, blocked: user.blocked ?? false }));
   return newUsers
 };
 

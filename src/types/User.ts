@@ -27,7 +27,7 @@ export class User {
   id: string;
 
   @Authorized(AuthRole.ADMIN, AuthRole.READ)
-  @Field(() => Boolean)
+  @Field(() => Boolean, { defaultValue: false })
   blocked: boolean = false;
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
@@ -77,10 +77,10 @@ export class User {
   @Field(() => String, { nullable: true })
   pronoun?: string;
 
-  @Field(() => [Role])
+  @Field(() => [Role], { defaultValue: [] })
   roles: Role[] = [];
 
-  @Field(() => [Badge])
+  @Field(() => [Badge], { defaultValue: [] })
   badges: Badge[] = [];
 
   @Field(() => DiscordInformation, { nullable: true })
@@ -102,13 +102,13 @@ export class SubscriptionUser {
 
   @Field(() => String, { nullable: true })
   pronoun?: string;
-  
+
   @Field(() => String, { nullable: true })
   bio?: string;
 
   @Field(() => String, { nullable: true })
   discordId?: string;
-  
+
   @Field(() => String, { nullable: true })
   picture?: string;
 
