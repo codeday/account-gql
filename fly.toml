@@ -1,11 +1,9 @@
-app = "codeday-account-gql"
+# fly.toml file generated for codeday-account-gql on 2023-05-24T10:01:11-07:00
 
+app = "codeday-account-gql"
 kill_signal = "SIGINT"
 kill_timeout = 5
-processes = []
-
-[env]
+primary_region = "sea"
 
 [experimental]
-  allowed_public_ports = []
   auto_rollback = true
