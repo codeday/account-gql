@@ -428,7 +428,7 @@ export class UserResolver {
         ? {
             username: data.username,
             discriminator: data.discriminator,
-            handle: `@${data.username}#${data.discriminator}`,
+            handle: data.discriminator === "0" ? `@${data.username}` : `@${data.username}#${data.discriminator}`,
             tag: `<@${discordId}>`,
             avatar: "https://cdn.discordapp.com/avatars/" + discordId + "/" + data.avatar,
           }
