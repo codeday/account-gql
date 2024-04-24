@@ -138,7 +138,7 @@ export class UserResolver {
     }
 
     await updateUser({ username }, ctx, async (prev: any) => {
-      if (prev.username && updates.username) throw new Error("You cannot change your username!");
+      if (!ctx.auth.isAdmin && prev.username && updates.username) throw new Error("You cannot change your username!");
       const newUser = {
         ...prev,
         ...updates,
