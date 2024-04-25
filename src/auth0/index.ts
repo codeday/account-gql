@@ -6,6 +6,7 @@ import {
   objectCamelToSnake, objectSnakeToCamel, filterNullOrUndefinedKeys, filterKeysKeep, filterKeysRemove, chunk,
 } from './utils';
 import getAllUsers from 'auth0-get-all-users'
+import { Context } from '../context';
 
 export const scopes = {
     readUsers: 'read:users',
@@ -17,7 +18,7 @@ export const scopes = {
   const requireAnyOfScopes = (ctx, requiredScopes) => {return true}
 
 
-const userPublicFields = ['user_id', 'username', 'name', 'picture', 'pronoun', 'title', 'bio', 'badges', 'discord_id', 'github_username'];
+const userPublicFields = ['user_id', 'username', 'name', 'picture', 'pronoun', 'title', 'bio', 'badges', 'discord_id', 'github_username', 'stripe_connect_account'];
 const userPrivateFields = [
   'email',
   'blocked',
@@ -68,9 +69,9 @@ const getAllUsersFactory = (auth0) => async (ctx) => {
   return newUsers
 }
 
-const findUsersFactory = (auth0) => async (query, ctx, perPage = 10, page = 0, escape = true) => {
-  if (ctx.user) {
-    query = { id: ctx.user }
+const findUsersFactory = (auth0) => async (query, ctx?: Context, perPage = 10, page = 0, escape = true) => {
+  if (ctx?.auth?.user) {
+    query = { id: ctx.auth.user }
   }
   // Convert query to Auth0 field names
   const snakeQuery: any = objectCamelToSnake(filterNullOrUndefinedKeys(query));
@@ -85,6 +86,11 @@ const findUsersFactory = (auth0) => async (query, ctx, perPage = 10, page = 0, e
   if (query.discordId) {
     filteredQuery['user_metadata.discord_id'] = query.discordId;
     delete filteredQuery.discord_id;
+  }
+
+  if (query.stripe_connect_account) {
+    filteredQuery['user_metadata.stripe_connect_account'] = query.discordId;
+    delete filteredQuery.stripe_connect_account;
   }
   
   if (query.githubUsername) {

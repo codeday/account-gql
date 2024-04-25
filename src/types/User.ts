@@ -85,6 +85,9 @@ export class User {
 
   @Field(() => DiscordInformation, { nullable: true })
   discordInformation?: DiscordInformation;
+
+  @Field(() => String, { nullable: true })
+  stripeConnectAccount?: string
 }
 
 export type IUser = User;
@@ -117,4 +120,7 @@ export class SubscriptionUser {
 
   @Field(() => [Badge], { nullable: "itemsAndList" })
   badges?: Badge[];
+
+  @Field(() => String, { nullable: true })
+  stripeConnectAccount?: string
 }

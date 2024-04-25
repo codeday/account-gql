@@ -31,6 +31,7 @@ import { GraphQLUpload, FileUpload } from "graphql-upload";
 import { Inject } from "typedi";
 import { UserSearch } from "../inputs/UserSearch";
 import { UserPictureTransformInput } from "../inputs/Picture";
+import Stripe from "stripe";
 
 const {
   findUsers,
@@ -67,6 +68,9 @@ export class SubscriptionUserResolver {
 export class UserResolver {
   @Inject(() => Uploader)
   private readonly uploader: Uploader;
+
+  @Inject(() => Stripe)
+  private readonly stripe: Stripe;
 
   @Query(() => User, { nullable: true })
   async getUser(
@@ -265,7 +269,7 @@ export class UserResolver {
     @Arg("roleId", () => ID) roleId: string,
     @PubSub() pubSub: PubSubEngine
   ): Promise<boolean> {
-    const user = (await findUsersUncached({ id }, {}))[0];
+    const user = (await findUsersUncached({ id }))[0];
     try {
       await addRole(id, roleId, {});
     } catch (error) {
@@ -286,7 +290,7 @@ export class UserResolver {
   ): Promise<boolean> {
     where = ctx?.auth?.user ? { id: ctx?.auth?.user } : where;
 
-    const users = await findUsersUncached(where, {});
+    const users = await findUsersUncached(where);
     const roleId = getRoleByCode(code);
 
     if (!users || users.length === 0) return false;
@@ -406,6 +410,98 @@ export class UserResolver {
       return user;
     });
     return result.url;
+  }
+
+  @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
+  @FieldResolver(() => String, { name: "payoutsDashboardLink"})
+  async payoutsDashboardLink(
+    @Ctx() ctx: Context,
+    @PubSub() pubSub: PubSubEngine,
+    @Root() user: User,
+  ): Promise<string> {
+    if (!ctx.auth.isAdmin && ctx.auth.user !== user.username || !user.username) throw new Error('Cannot access on this user');
+
+    const latestUser = (await findUsersUncached({ id: user.id }, ctx))?.[0];
+    let stripeConnectAccount = latestUser?.stripeConnectAccount;
+
+    if (!stripeConnectAccount) {
+      await updateUser({ id: user.id }, ctx, async (prev: User) => {
+        const newUser: User = {
+          ...prev,
+        };
+
+        if (!newUser.stripeConnectAccount) {
+          const { id: newStripeConnectAccount } = await this.stripe.accounts.create({
+            controller: {
+              stripe_dashboard: { type: "express" },
+              fees: { payer: "application" },
+              losses: { payments: "application" },
+            },
+            business_type: 'individual',
+            country: 'US',
+            default_currency: 'USD',
+            capabilities: {
+              transfers: { requested: true },
+              card_payments: { requested: false },
+              tax_reporting_us_1099_misc: { requested: true },
+            },
+            business_profile: {
+              product_description: 'Computer programming services, specifically creation of new software and maintainance of existing software.',
+              mcc: '7372',
+            },
+            settings: {
+              payments: {
+                statement_descriptor: 'CODEDAY.ORG',
+              },
+              payouts: {
+                statement_descriptor: 'CODEDAY.ORG',
+                schedule: {
+                  delay_days: 'minimum',
+                  interval: 'daily',
+                },
+              },
+            },
+          });
+          newUser.stripeConnectAccount = newStripeConnectAccount;
+          stripeConnectAccount = newStripeConnectAccount;
+        } else stripeConnectAccount = newUser.stripeConnectAccount;
+
+        pubSub.publish(UserSubscriptionTopics.update, newUser as SubscriptionUser);
+        return newUser;
+      });
+    }
+
+    const stripeAccountCapabilities = await this.stripe
+      .accounts
+      .retrieveCapability(stripeConnectAccount!, 'transfers');
+
+    if (stripeAccountCapabilities.status === 'active') {
+      return (await this.stripe.accounts.createLoginLink(stripeConnectAccount!)).url;
+    } else {
+      return (await this.stripe.accountLinks.create({
+        account: stripeConnectAccount!,
+        refresh_url: 'https://account.codeday.org/',
+        return_url: 'https://account.codeday.org/',
+        type: "account_onboarding",
+        collection_options: {
+          fields: 'eventually_due',
+        },
+      })).url;
+    }
+  }
+
+  @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
+  @FieldResolver(() => Boolean, { name: "payoutsEligible"})
+  async payoutsEligible(
+    @Ctx() ctx: Context,
+    @Root() user: User
+  ): Promise<boolean> {
+    if (!ctx.auth.isAdmin && ctx.auth.user !== user.username) throw new Error('Cannot access on this user');
+    if (!user.stripeConnectAccount) return false;
+    const stripeAccountCapabilities = await this.stripe
+      .accounts
+      .retrieveCapability(user.stripeConnectAccount, 'transfers');
+    return stripeAccountCapabilities.status === 'active';
   }
 
   @FieldResolver({ name: "roles" })

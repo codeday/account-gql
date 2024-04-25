@@ -9,6 +9,7 @@ loadEnv();
     'AUTH0_CLIENT_SECRET',
     'DISCORD_BOT_TOKEN',
     'AUTH0_HOOK_SHARED_SECRET',
+    'STRIPE_SECRET_KEY',
     'UPLOADER_BASE'
 ].forEach((req) => { if (!process.env[req]) throw Error(`The ${req} environment variable is required.`); });
 
@@ -18,6 +19,9 @@ const config = {
   auth: {
     secret: process.env.AUTH_SECRET!,
     userSecret: process.env.AUTH0_HOOK_SHARED_SECRET!,
+  },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY!,
   },
   auth0: {
     domain: process.env.AUTH0_DOMAIN!,
