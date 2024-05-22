@@ -262,7 +262,7 @@ export class UserResolver {
     return true;
   }
 
-  @Authorized(AuthRole.ADMIN, AuthRole.WRITE)
+  @Authorized(AuthRole.ADMIN)
   @Mutation(() => Boolean)
   async addRole(
     @Arg("id", () => ID) id: string,
@@ -290,13 +290,14 @@ export class UserResolver {
   ): Promise<boolean> {
     where = ctx?.auth?.user ? { id: ctx?.auth?.user } : where;
 
-    const users = await findUsersUncached(where);
+    const users = await findUsersUncached(where, ctx);
     const roleId = getRoleByCode(code);
 
     if (!users || users.length === 0) return false;
     if (!roleId) throw new Error("Invalid role code");
 
     try {
+      console.log(`Adding role ${roleId} to ${users[0]?.id}`);
       await addRole(users[0].id, roleId, {});
     } catch (error) {
       throw new Error(error as string);
@@ -419,8 +420,6 @@ export class UserResolver {
     @PubSub() pubSub: PubSubEngine,
     @Root() user: User,
   ): Promise<string> {
-    if (!ctx.auth.isAdmin && ctx.auth.user !== user.username || !user.username) throw new Error('Cannot access on this user');
-
     const latestUser = (await findUsersUncached({ id: user.id }, ctx))?.[0];
     let stripeConnectAccount = latestUser?.stripeConnectAccount;
 
@@ -496,7 +495,6 @@ export class UserResolver {
     @Ctx() ctx: Context,
     @Root() user: User
   ): Promise<boolean> {
-    if (!ctx.auth.isAdmin && ctx.auth.user !== user.username) throw new Error('Cannot access on this user');
     if (!user.stripeConnectAccount) return false;
     const stripeAccountCapabilities = await this.stripe
       .accounts

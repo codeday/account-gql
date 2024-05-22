@@ -100,7 +100,7 @@ const findUsersFactory = (auth0) => async (query, ctx?: Context, perPage = 10, p
 
   // Make sure the user has the proper scope to search by the specified fields
   if (Object.keys(filteredQuery).filter((k) => userPrivateFields.includes(k)).length > 0) {
-    requireAnyOfScopes(ctx, [scopes.readUsers, ctx.user ? `read:user:${ctx.user}` : null])
+    requireAnyOfScopes(ctx, [scopes.readUsers, ctx?.user ? `read:user:${ctx.user}` : null])
   }
 
   // Make sure the user is searching for _something_
@@ -118,7 +118,7 @@ const findUsersFactory = (auth0) => async (query, ctx?: Context, perPage = 10, p
     page,
     fields: [
       ...userPublicFields,
-      ...(hasAnyOfScopes(ctx, [scopes.readUsers, ctx.user ? `read:user:${ctx.user}` : null]) ? userPrivateFields : []),
+      ...(hasAnyOfScopes(ctx, [scopes.readUsers, ctx?.user ? `read:user:${ctx.user}` : null]) ? userPrivateFields : []),
       'user_metadata',
     ],
   });
@@ -126,7 +126,7 @@ const findUsersFactory = (auth0) => async (query, ctx?: Context, perPage = 10, p
     .map((user) => ({ ...filterKeysRemove(user, ['user_metadata']), ...user.user_metadata }))
     .map((user) => filterKeysKeep(user, [
       ...userPublicFields,
-      ...(hasAnyOfScopes(ctx, [scopes.readUsers, scopes.writeUsers, ctx.user ? `read:user:${ctx.user}` : null, ctx.user ? `write:user:${ctx.user}` : null]) ? userPrivateFields : []),
+      ...(hasAnyOfScopes(ctx, [scopes.readUsers, scopes.writeUsers, ctx?.user ? `read:user:${ctx.user}` : null, ctx?.user ? `write:user:${ctx.user}` : null]) ? userPrivateFields : []),
     ]))
     .map((user) => ({ ...objectSnakeToCamel(filterKeysRemove(user, ['user_id'])), id: user.user_id }))
     .map((user) => ({ ...user, blocked: user.blocked ?? false }));
@@ -195,9 +195,9 @@ const updateUserFactory = (auth0) => async (where, ctx, updateFn) => {
 };
 
 const addRoleToUserFactory = (auth0) => async (id, roleId, ctx) => {
-  requireAnyOfScopes(ctx, [scopes.writeUsers, ctx.user ? `write:user:${ctx.user}` : null])
-  if (ctx.user) {
-    id = ctx.user
+  requireAnyOfScopes(ctx, [scopes.writeUsers, ctx?.user ? `write:user:${ctx.user}` : null])
+  if (ctx?.user) {
+    id = ctx?.user
   }
   return new Promise(function (resolve, reject) {
     auth0.assignRolestoUser({ id }, { roles: [roleId] }, function (err) {
