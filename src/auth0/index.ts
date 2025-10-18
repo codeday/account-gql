@@ -18,7 +18,21 @@ export const scopes = {
   const requireAnyOfScopes = (ctx, requiredScopes) => {return true}
 
 
-const userPublicFields = ['user_id', 'username', 'name', 'picture', 'pronoun', 'title', 'bio', 'badges', 'discord_id', 'github_username', 'stripe_connect_account'];
+const userPublicFields = [
+  'user_id', 
+  'username', 
+  'name', 
+  'picture', 
+  'pronoun', 
+  'title', 
+  'bio', 
+  'badges', 
+  'discord_id', 
+  'github_username', 
+  'stripe_connect_account',
+  'doi',
+  'affiliation',
+];
 const userPrivateFields = [
   'email',
   'blocked',

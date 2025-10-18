@@ -1,4 +1,4 @@
-FROM node:16.15 as builder
+FROM node:18.15 as builder
 RUN apt-get -qy update && apt-get install -qy openssl
 WORKDIR /app
 COPY ./package.json ./yarn.lock /app/
@@ -8,7 +8,7 @@ RUN yarn install --frozen-lockfile
 
 RUN yarn build
 
-FROM node:16.15-slim as runtime
+FROM node:18.15-slim as runtime
 RUN apt-get -qy update && apt-get install -qy openssl
 
 WORKDIR /app
