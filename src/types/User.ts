@@ -2,6 +2,7 @@ import { ObjectType, Field, ID, Authorized } from "type-graphql";
 import { AuthRole } from "../context";
 import { Badge } from "./Badge";
 import { Role } from "./Role";
+import { Certification } from "./Certification";
 
 @ObjectType()
 export class DiscordInformation {
@@ -62,6 +63,15 @@ export class User {
 
   @Field(() => String, { nullable: true })
   githubUsername?: string;
+
+  @Field(() => String, { nullable: true })
+  orcid?: string;
+
+  @Field(() => String, { nullable: true })
+  affiliation?: string;
+
+  @Field(() => [Certification], { defaultValue: [] })
+  certifications: Certification[];
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
   @Field(() => Boolean, { nullable: true })

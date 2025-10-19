@@ -30,7 +30,7 @@ const userPublicFields = [
   'discord_id', 
   'github_username', 
   'stripe_connect_account',
-  'doi',
+  'orcid',
   'affiliation',
 ];
 const userPrivateFields = [
@@ -41,6 +41,7 @@ const userPrivateFields = [
   'phone_number',
   'accept_tos',
   'display_name_format',
+  'certifications',
 ];
 const topLevelFields = ['given_name', 'family_name', 'email', 'blocked', 'username', 'name', 'user_id'];
 
@@ -102,8 +103,8 @@ const findUsersFactory = (auth0) => async (query, ctx?: Context, perPage = 10, p
     delete filteredQuery.discord_id;
   }
 
-  if (query.stripe_connect_account) {
-    filteredQuery['user_metadata.stripe_connect_account'] = query.discordId;
+  if (query.stripeConnectAccount) {
+    filteredQuery['user_metadata.stripe_connect_account'] = query.stripeConnectAccount;
     delete filteredQuery.stripe_connect_account;
   }
   
