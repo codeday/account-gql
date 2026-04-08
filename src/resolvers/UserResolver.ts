@@ -7,8 +7,6 @@ import {
   Root,
   Authorized,
   Ctx,
-  PubSub,
-  PubSubEngine,
   ID,
   registerEnumType,
 } from "type-graphql";
@@ -32,6 +30,7 @@ import { Inject } from "typedi";
 import { UserSearch } from "../inputs/UserSearch";
 import { UserPictureTransformInput } from "../inputs/Picture";
 import Stripe from "stripe";
+import { pubSub } from "../pubsub";
 
 const {
   findUsers,
@@ -61,9 +60,8 @@ export class SubscriptionUserResolver {
   @FieldResolver({ name: "roles" })
   async roles(@Root() { id }: User) {
     return getRolesForUser(id);
-}
   }
-
+}
 @Resolver(User)
 export class UserResolver {
   @Inject(() => Uploader)
@@ -120,8 +118,7 @@ export class UserResolver {
   async updateUser(
     @Arg("username") username: string,
     @Arg("updates") updates: UpdateUserInput,
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     if (!ctx.auth.user && !username) {
       throw new Error("Please specify a user to update.");
@@ -168,8 +165,7 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async grantBadge(
     @Arg("where") where: UserWhereInput,
-    @Arg("badge") badge: BadgeInput,
-    @PubSub() pubSub: PubSubEngine
+    @Arg("badge") badge: BadgeInput
   ): Promise<boolean> {
     await updateUser(where, {}, (prev: any) => {
       const user = {
@@ -187,8 +183,7 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async revokeBadge(
     @Arg("where") where: UserWhereInput,
-    @Arg("badge") badge: BadgeInput,
-    @PubSub() pubSub: PubSubEngine
+    @Arg("badge") badge: BadgeInput
   ): Promise<boolean> {
     await updateUser(where, {}, (prev: any) => {
       const user = {
@@ -208,8 +203,7 @@ export class UserResolver {
     @Arg("where") where: UserWhereInput,
     @Arg("badges", () => [DisplayedBadgeInput], { nullable: true })
     badges: DisplayedBadgeInput[],
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     if (!ctx.auth.user && !where) {
       throw new Error("Please specify a user to update.");
@@ -266,8 +260,7 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async addRole(
     @Arg("id", () => ID) id: string,
-    @Arg("roleId", () => ID) roleId: string,
-    @PubSub() pubSub: PubSubEngine
+    @Arg("roleId", () => ID) roleId: string
   ): Promise<boolean> {
     const user = (await findUsersUncached({ id }))[0];
     try {
@@ -285,8 +278,7 @@ export class UserResolver {
   async addRoleByCode(
     @Arg("where") where: UserWhereInput,
     @Arg("code") code: string,
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     where = ctx?.auth?.user ? { id: ctx?.auth?.user } : where;
 
@@ -312,8 +304,7 @@ export class UserResolver {
   async linkDiscord(
     @Arg("userId", () => ID) userId: string,
     @Arg("discordId") discordId: string,
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     await updateUser({ id: userId }, ctx, (prev: any) => {
       if (prev.discordId) {
@@ -331,8 +322,7 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async unlinkDiscord(
     @Arg("userId", () => ID) userId: string,
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     await updateUser({ id: userId }, ctx, (prev: User) => {
       if (!prev.discordId) {
@@ -351,8 +341,7 @@ export class UserResolver {
   async pizzaOrTurtleCult(
     @Arg("where") where: UserWhereInput,
     @Arg("pizzaOrTurtle", () => PizzaOrTurtle) pizzaOrTurtle: PizzaOrTurtle,
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     const badgeId = pizzaOrTurtle.toLowerCase();
     const otherBadgeId = badgeId == "turtle" ? "pizza" : "turtle";
@@ -384,8 +373,7 @@ export class UserResolver {
   async uploadProfilePicture(
     @Arg("where") where: UserWhereInput,
     @Arg("upload", () => GraphQLUpload) upload: FileUpload,
-    @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine
+    @Ctx() ctx: Context
   ): Promise<string> {
     const { createReadStream, filename } = await upload;
     const chunks = [];
@@ -414,10 +402,9 @@ export class UserResolver {
   }
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
-  @FieldResolver(() => String, { name: "payoutsDashboardLink"})
+  @FieldResolver(() => String, { name: "payoutsDashboardLink" })
   async payoutsDashboardLink(
     @Ctx() ctx: Context,
-    @PubSub() pubSub: PubSubEngine,
     @Root() user: User,
   ): Promise<string> {
     const latestUser = (await findUsersUncached({ id: user.id }, ctx))?.[0];
@@ -490,7 +477,7 @@ export class UserResolver {
   }
 
   @Authorized(AuthRole.ADMIN, AuthRole.USER, AuthRole.READ)
-  @FieldResolver(() => Boolean, { name: "payoutsEligible"})
+  @FieldResolver(() => Boolean, { name: "payoutsEligible" })
   async payoutsEligible(
     @Ctx() ctx: Context,
     @Root() user: User
@@ -520,12 +507,12 @@ export class UserResolver {
       const data = await response.json();
       result = data
         ? {
-            username: data.username,
-            discriminator: data.discriminator,
-            handle: data.discriminator === "0" ? `@${data.username}` : `@${data.username}#${data.discriminator}`,
-            tag: `<@${discordId}>`,
-            avatar: "https://cdn.discordapp.com/avatars/" + discordId + "/" + data.avatar,
-          }
+          username: data.username,
+          discriminator: data.discriminator,
+          handle: data.discriminator === "0" ? `@${data.username}` : `@${data.username}#${data.discriminator}`,
+          tag: `<@${discordId}>`,
+          avatar: "https://cdn.discordapp.com/avatars/" + discordId + "/" + data.avatar,
+        }
         : null;
     }
     lru.set(discordId, result);

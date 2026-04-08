@@ -4,10 +4,9 @@ import { GraphQLSchema } from "graphql";
 import { Container } from "typedi";
 import resolvers from "./resolvers";
 import { authChecker } from "./context";
-import { PubSub } from "graphql-subscriptions";
+import { pubSub } from "./pubsub";
 
 export async function createSchema(): Promise<GraphQLSchema> {
-  const pubSub = new PubSub();
   return buildSchema({
     resolvers,
     container: Container,
