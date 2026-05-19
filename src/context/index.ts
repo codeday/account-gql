@@ -1,4 +1,4 @@
-import { ExpressContext } from "apollo-server-express/dist/ApolloServer";
+import { Request } from "express";
 import { AuthContext, LegacyAuthContext } from "./auth";
 
 export * from "./auth";
@@ -7,7 +7,11 @@ export interface Context {
   auth: AuthContext | LegacyAuthContext;
 }
 
-export async function createContext({ req }: ExpressContext): Promise<Context> {
+interface GraphQLRequestContext {
+  req?: Request;
+}
+
+export async function createContext({ req }: GraphQLRequestContext): Promise<Context> {
   const tokenHeader = (req?.header("X-Account-Authorization") || "")
     .split(/\s+/);
   const legacyTokenHeader = (

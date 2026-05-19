@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: account_gql
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d account_gql"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-5000}
+      AUTH_SECRET: ${AUTH_SECRET:-local-dev-secret}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-local-dev.auth0.invalid}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID:-local-client-id}
+      AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET:-local-client-secret}
+      AUTH0_HOOK_SHARED_SECRET: ${AUTH0_HOOK_SHARED_SECRET:-local-user-secret}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-local-discord-token}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_local}
+      UPLOADER_BASE: ${UPLOADER_BASE:-http://localhost:3001}
+      UPLOADER_SECRET: ${UPLOADER_SECRET:-local-uploader-secret}
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const net=require('net');const s=net.connect(5000,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000);\""]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
